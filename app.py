@@ -11,7 +11,7 @@ import json
 import gdown
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"], methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
 # Google Drive configuration
 MODEL_PATH = "models/plant_disease_detector_model.keras"
