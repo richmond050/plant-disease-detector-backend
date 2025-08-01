@@ -92,6 +92,17 @@ def predict_image(img_path):
     readable_class = clean_class_name(raw_class)
     return readable_class
 
+
+# Health check endpoint
+@app.route('/', methods=['GET'])
+def health_check():
+    return jsonify({
+        "message": "Backend is working!",
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "classes_count": len(class_names) if class_names else 0
+    })
+
 # POST /predict endpoint
 @app.route('/predict', methods=['POST'])
 def predict():
