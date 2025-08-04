@@ -14,9 +14,9 @@ app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
 # Google Drive configuration
-MODEL_PATH = "models/plant_disease_detector_model.keras"
-MODEL_INFO_PATH = "models/model_info.json"
-MODEL_URL = "https://drive.google.com/uc?id=1LcT5g1Mprunevuj82fWZiclE_VJIlJE0"
+MODEL_PATH = "models/folia_2.keras"
+MODEL_INFO_PATH = "models/folia_2_model_info.json"
+MODEL_URL = "https://drive.google.com/uc?id=1L3BvfYpPrhVVfu8kuiGSnqNgzLe-b5LL"
 
 # Load model and model info
 def load_model_and_info():
