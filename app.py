@@ -2,39 +2,34 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import uuid
-import requests
-from tensorflow.keras.preprocessing import image
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
 import json
-import gdown
+from PIL import Image
+
+# Try importing tflite-runtime, fallback to tensorflow.lite if running locally
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    try:
+        import tensorflow.lite as tflite
+    except ImportError:
+        # Fallback if running on local development machine with full TF
+        import tensorflow.lite as tflite
 
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
-# Google Drive configuration
-MODEL_PATH = "models/folia_2.keras"
+MODEL_PATH = "models/folia_2.tflite"
 MODEL_INFO_PATH = "models/folia_2_model_info.json"
-MODEL_URL = "https://drive.google.com/uc?id=1L3BvfYpPrhVVfu8kuiGSnqNgzLe-b5LL"
 
 # Load model and model info
 def load_model_and_info():
-    # Create models directory if it doesn't exist
-    os.makedirs("models", exist_ok=True)
-    
-    # Download model from Google Drive if not exists
     if not os.path.exists(MODEL_PATH):
-        print("Downloading model from Google Drive...")
-        try:
-            gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
-            print("✅ Model downloaded successfully from Google Drive!")
-        except Exception as e:
-            print(f"❌ Error downloading model: {e}")
-            raise FileNotFoundError(f"Could not download model from Google Drive")
+        raise FileNotFoundError(f"TFLite model file not found at {MODEL_PATH}. Make sure it is committed to Git.")
     
-    # Load the model
-    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    # Load the TFLite model interpreter
+    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+    interpreter.allocate_tensors()
     
     # Load model info if available
     class_names = None
@@ -63,12 +58,12 @@ def load_model_and_info():
             "Tomato__Tomato_YellowLeaf__Curl_Virus"
         ]
     
-    return model, class_names
+    return interpreter, class_names
 
 # Load model and class names
 model, class_names = load_model_and_info()
-print(f"✅ Model loaded successfully from {MODEL_PATH}")
-print(f"�� Number of classes: {len(class_names)}")
+print(f"✅ TFLite Model loaded successfully from {MODEL_PATH}")
+print(f"✅ Number of classes: {len(class_names)}")
 
 # Function to clean class name
 def clean_class_name(raw_name):
@@ -80,13 +75,28 @@ def clean_class_name(raw_name):
             cleaned.append(word)
     return " ".join(word.capitalize() for word in cleaned)
 
-# Prediction function
+# Prediction function using TFLite
 def predict_image(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))
-    img_array = image.img_to_array(img) / 255.0
+    # Load and resize image using PIL
+    img = Image.open(img_path).convert('RGB')
+    img = img.resize((224, 224), Image.Resampling.BILINEAR)
+    
+    # Preprocess image
+    img_array = np.array(img, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
-
-    prediction = model.predict(img_array)
+    
+    # Get input and output tensors details
+    input_details = model.get_input_details()
+    output_details = model.get_output_details()
+    
+    # Point the model to the image array
+    model.set_tensor(input_details[0]['index'], img_array)
+    
+    # Run inference
+    model.invoke()
+    
+    # Extract the results
+    prediction = model.get_tensor(output_details[0]['index'])
     predicted_index = np.argmax(prediction)
     raw_class = class_names[predicted_index]
     readable_class = clean_class_name(raw_class)
