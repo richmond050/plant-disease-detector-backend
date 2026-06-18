@@ -8,7 +8,7 @@ from PIL import Image
 
 # Try importing tflite-runtime, fallback to tensorflow.lite if running locally
 try:
-    import tflite_runtime.interpreter as tflite
+    import tflite_runtime.interpreter as tflite  # type: ignore
 except ImportError:
     try:
         import tensorflow.lite as tflite
